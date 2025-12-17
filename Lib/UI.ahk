@@ -48,6 +48,8 @@ class AppUI {
         this.MainGui.Add("Button", "w95 ys", "Delete").OnEvent("Click", (*) => this.DeleteSelected())
         this.MainGui.Add("Button", "w95 ys", "Rename").OnEvent("Click", (*) => this.RenameSelected())
         this.MainGui.Add("Button", "w95 ys", "Edit Code").OnEvent("Click", (*) => this.EditSelected())
+        this.MainGui.Add("Button", "w95 ys", "Bind Key").OnEvent("Click", (*) => this.BindSelected()) 
+        this.MainGui.Add("Button", "w95 ys", "Manage Keys").OnEvent("Click", (*) => this.ShowBindingsUI()) ; New Button
         this.MainGui.Add("Button", "w95 xm", "Play").OnEvent("Click", (*) => this.PlaySelected())
         
         ; Playback Settings
@@ -143,6 +145,47 @@ class AppUI {
         }
     }
 
+    static BindSelected() {
+        selected := this.MacroList.Text
+        if (!selected)
+            return
+
+        this.ShowOSD("PRESS KEY TO BIND`n(Esc to Cancel)", "Blue")
+        
+        ih := InputHook("L1 M") ; Length 1, Modify (block? No, M ensures suppression if we want, but wait.)
+        ; User said "does not take into account F1 on windows". 
+        ; We need to capture the key name.
+        ; InputHook is tricky for F-keys unless we use {All}.
+        
+        ih := InputHook("L1 T5", "{Esc}") ; Wait for 1 key or 5 seconds or Esc. Capture includes F-keys? No.
+        ; Better approach for binding: "KeyWait" loop or InputHook with KeyOpt.
+        
+        ; Using a robust Key binder:
+        ih := InputHook("V0 L0") ; Invisible, no length limit, we rely on OnKeyDown
+        ih.KeyOpt("{All}", "N") ; Notify all
+        ih.OnKeyDown := ObjBindMethod(this, "OnBindKeyDown", selected, ih)
+        ih.Start()
+    }
+    
+    static OnBindKeyDown(macroName, ih, hook, vk, sc) {
+        keyName := GetKeyName(Format("vk{:x}sc{:x}", vk, sc))
+        hook.Stop()
+        this.HideOSD()
+        
+        if (keyName == "Escape") {
+            MsgBox("Binding Cancelled")
+            return
+        }
+        
+        if (keyName != "") {
+            result := MsgBox("Bind '" . keyName . "' to '" . macroName . "'?", "Confirm Binding", "YesNo")
+            if (result == "Yes") {
+                MacroManager.RegisterBinding(keyName, macroName)
+                MsgBox("Bound " . keyName . " to " . macroName)
+            }
+        }
+    }
+
     static EditSelected() {
         selected := this.MacroList.Text
         if (!selected)
@@ -179,6 +222,48 @@ class AppUI {
         if (selected) {
             MacroManager.CurrentMacro := selected
             Player.Play()
+        }
+    }
+
+    static ShowBindingsUI() {
+        this.BindingsGui := Gui("+Owner" . this.MainGui.Hwnd, "Manage Bindings")
+        this.BindingsGui.Add("Text",, "Active Bindings (Key -> Macro):")
+        this.BindingList := this.BindingsGui.Add("ListBox", "w300 h200")
+        
+        this.BindingsGui.Add("Button", "w300", "Unbind Selected").OnEvent("Click", (*) => this.UnbindSelected())
+        
+        this.RefreshBindingsList()
+        this.BindingsGui.Show()
+    }
+
+    static RefreshBindingsList() {
+        if (!this.BindingsGui)
+            return
+            
+        this.BindingList.Delete()
+        for key, macro in MacroManager.Bindings {
+            this.BindingList.Add([key . "  ->  " . macro]) ; Must be an array
+        }
+    }
+
+    static UnbindSelected() {
+        selectedText := this.BindingList.Text
+        if (selectedText) {
+            ; Format is "Key  ->  Macro"
+            parts := Array()
+            Loop Parse, selectedText, " "
+                if (A_LoopField != "" && A_LoopField != "->" && A_LoopField != " ")
+                    parts.Push(A_LoopField)
+            
+            ; Re-parse specifically 
+            ; Actually simplest is to split by "  ->  "
+            splitPos := InStr(selectedText, "  ->  ")
+            if (splitPos > 0) {
+                key := SubStr(selectedText, 1, splitPos - 1)
+                MacroManager.UnbindKey(key)
+                this.RefreshBindingsList()
+                MsgBox("Unbound: " . key)
+            }
         }
     }
 

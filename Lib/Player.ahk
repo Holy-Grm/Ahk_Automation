@@ -12,8 +12,10 @@ class Player {
         }
     }
 
-    static Play() {
-        macroName := MacroManager.CurrentMacro
+    static Play(macroName := "") {
+        if (macroName == "")
+            macroName := MacroManager.CurrentMacro
+        
         actions := MacroManager.GetMacro(macroName)
 
         if (actions.Length == 0) {

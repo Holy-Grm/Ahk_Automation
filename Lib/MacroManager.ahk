@@ -1,5 +1,6 @@
 class MacroManager {
     static Macros := Map()
+    static Bindings := Map() ; Map KeyName -> MacroName
     static CurrentMacro := ""
     static StoragePath := "macros.json"
 
@@ -15,20 +16,61 @@ class MacroManager {
                 if (jsonStr != "") {
                     loaded := Jxon_Load(jsonStr)
                     if (IsObject(loaded)) {
-                        ; Jxon_Load returns a map/object. We need to ensure it matches our structure.
-                        ; Our Structure: Map(Name -> Array of Actions)
-                        this.Macros := loaded
+                        ; Check for new format vs legacy
+                        if (loaded.Has("Macros") && loaded.Has("Bindings")) {
+                            this.Macros := loaded["Macros"]
+                            this.Bindings := loaded["Bindings"]
+                        } else {
+                            ; Legacy Format (Root is Macros map)
+                            this.Macros := loaded
+                            this.Bindings := Map()
+                        }
                     }
                 }
             } catch as err {
                 MsgBox("Error loading macros: " . err.Message)
             }
         }
+        this.ApplyBindings()
+    }
+    
+    static ApplyBindings() {
+        for key, macroName in this.Bindings {
+            ; Apply Blocking Hotkey
+            try {
+                ; Bind the macroName to the callback to ensure value capture
+                Callback := ((name, *) => Player.Play(name)).Bind(macroName)
+                Hotkey(key, Callback, "On")
+            } catch {
+                ; Ignore invalid keys
+            }
+        }
+    }
+
+    static RegisterBinding(key, macroName) {
+        ; Remove old binding for this key if exists
+        if (this.Bindings.Has(key)) {
+            try Hotkey(key, "Off")
+        }
+        
+        this.Bindings[key] := macroName
+        this.ApplyBindings()
+    }
+    
+    static UnbindKey(key) {
+        if (this.Bindings.Has(key)) {
+            try Hotkey(key, "Off")
+            this.Bindings.Delete(key)
+        }
     }
 
     static SaveMacros(*) {
         try {
-            jsonStr := Jxon_Dump(this.Macros)
+            data := Map()
+            data["Macros"] := this.Macros
+            data["Bindings"] := this.Bindings
+            
+            jsonStr := Jxon_Dump(data)
             if FileExist(this.StoragePath)
                 FileDelete(this.StoragePath)
             FileAppend(jsonStr, this.StoragePath)
