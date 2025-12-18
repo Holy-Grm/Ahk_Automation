@@ -75,14 +75,16 @@ class Recorder {
 
     static OnKeyDown(ih, vk, sc) {
         keyName := GetKeyName(Format("vk{:x}sc{:x}", vk, sc))
-        if (keyName = "F14")
+        recKey := MacroManager.SystemBindings.Get("ToggleRecording", "")
+        if (keyName != "" && keyName = recKey)
             return
         this.RecordAction("KeyDown", keyName)
     }
 
     static OnKeyUp(ih, vk, sc) {
         keyName := GetKeyName(Format("vk{:x}sc{:x}", vk, sc))
-        if (keyName = "F14")
+        recKey := MacroManager.SystemBindings.Get("ToggleRecording", "")
+        if (keyName != "" && keyName = recKey)
             return
         this.RecordAction("KeyUp", keyName)
     }
