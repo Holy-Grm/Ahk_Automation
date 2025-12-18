@@ -1,3 +1,4 @@
+![Icon](icon.ico)
 # AHK Automation Tool
 
 A lightweight and powerful automation tool written in **AutoHotkey v2**. This software allows you to record, edit, and replay keyboard and mouse macros through an intuitive graphical interface.
@@ -25,18 +26,19 @@ A lightweight and powerful automation tool written in **AutoHotkey v2**. This so
 
 1.  Clone this repository or download the source files.
 2.  Ensure you have AutoHotkey v2 installed.
-3.  (Optional) Place an `.ico` image named `icon.ico` in the root folder to use your own logo.
 
 ## 🎮 Usage
 
 ### Launch
 Double-click on **`Main.ahk`** to start the program.
 
+![AxA_UI_Exemple](AxA_UI.png)
+
 ### Recording a Macro
 1.  Click **"Record New"**.
 2.  Enter a name for your macro.
 3.  The interface will hide, and recording will begin. Perform your actions.
-4.  Press **`F8`** to stop recording.
+4.  Press **`F14`** to stop recording.
 
 ### Playing a Macro
 1.  Select a macro from the list.
