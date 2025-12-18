@@ -25,7 +25,6 @@ A lightweight and powerful automation tool written in **AutoHotkey v2**. This so
 
 1.  Clone this repository or download the source files.
 2.  Ensure you have AutoHotkey v2 installed.
-3.  (Optional) Place an `.ico` image named `icon.ico` in the root folder to use your own logo.
 
 ## 🎮 Usage
 
