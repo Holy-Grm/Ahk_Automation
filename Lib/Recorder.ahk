@@ -17,9 +17,19 @@ class Recorder {
         }
     }
 
-    static Start() {
-        ; Always create a new macro when recording starts via F14/Toggle
-        MacroManager.CreateMacro("Macro_" . A_Now)
+    static Start(name := "") {
+        if (name == "") {
+            i := 1
+            Loop {
+                name := "Macro" . i
+                if (!MacroManager.Macros.Has(name))
+                    break
+                i++
+            }
+        }
+
+        ; Always create/reset the macro when recording starts
+        MacroManager.CreateMacro(name)
         if (AppUI.MainGui)
             AppUI.RefreshMacroList()
 

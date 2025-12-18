@@ -24,15 +24,7 @@ if FileExist("icon.ico") {
 CoordMode "Mouse", "Screen"
 
 ; --- Stream Deck Hotkeys ---
-
-; F13 : Toggle Playback
-F13::Player.TogglePlayback()
-
-; F14 : Toggle Recording
-F14::Recorder.ToggleRecording()
-
-; F15 : Toggle UI
-F15::AppUI.Toggle()
+; Loaded via MacroManager.Init() -> ApplySystemBindings()
 
 #HotIf Player.IsPlaying
 Esc::Player.Stop()

@@ -4,7 +4,13 @@ class MacroManager {
     static CurrentMacro := ""
     static StoragePath := "macros.json"
 
+    static SystemBindings := Map() ; Map ActionName -> KeyName
+    
     static Init() {
+        this.SystemBindings["TogglePlayback"] := "F13"
+        this.SystemBindings["ToggleRecording"] := "F14"
+        this.SystemBindings["ToggleUI"] := "F15"
+        
         this.LoadMacros()
         OnExit(ObjBindMethod(this, "SaveMacros"))
     }
@@ -16,14 +22,14 @@ class MacroManager {
                 if (jsonStr != "") {
                     loaded := Jxon_Load(jsonStr)
                     if (IsObject(loaded)) {
-                        ; Check for new format vs legacy
-                        if (loaded.Has("Macros") && loaded.Has("Bindings")) {
+                        if (loaded.Has("Macros"))
                             this.Macros := loaded["Macros"]
+                        if (loaded.Has("Bindings"))
                             this.Bindings := loaded["Bindings"]
-                        } else {
-                            ; Legacy Format (Root is Macros map)
-                            this.Macros := loaded
-                            this.Bindings := Map()
+                        if (loaded.Has("SystemBindings")) {
+                            sb := loaded["SystemBindings"]
+                            for action, key in sb
+                                this.SystemBindings[action] := key
                         }
                     }
                 }
@@ -32,13 +38,12 @@ class MacroManager {
             }
         }
         this.ApplyBindings()
+        this.ApplySystemBindings()
     }
     
     static ApplyBindings() {
         for key, macroName in this.Bindings {
-            ; Apply Blocking Hotkey
             try {
-                ; Bind the macroName to the callback to ensure value capture
                 Callback := ((name, *) => Player.Play(name)).Bind(macroName)
                 Hotkey(key, Callback, "On")
             } catch {
@@ -46,13 +51,38 @@ class MacroManager {
             }
         }
     }
+    
+    static ApplySystemBindings() {
+        ; Actions mapping
+        Actions := Map(
+            "TogglePlayback", (*) => Player.TogglePlayback(),
+            "ToggleRecording", (*) => Recorder.ToggleRecording(),
+            "ToggleUI", (*) => AppUI.Toggle()
+        )
+
+        for action, key in this.SystemBindings {
+            if (key != "" && Actions.Has(action)) {
+                try Hotkey(key, Actions[action], "On")
+            }
+        }
+    }
+
+    static UpdateSystemBinding(action, key) {
+        ; Turn off old key
+        if (this.SystemBindings.Has(action)) {
+            oldKey := this.SystemBindings[action]
+            if (oldKey != "")
+                try Hotkey(oldKey, "Off")
+        }
+        
+        this.SystemBindings[action] := key
+        this.ApplySystemBindings()
+    }
 
     static RegisterBinding(key, macroName) {
-        ; Remove old binding for this key if exists
         if (this.Bindings.Has(key)) {
             try Hotkey(key, "Off")
         }
-        
         this.Bindings[key] := macroName
         this.ApplyBindings()
     }
@@ -69,6 +99,7 @@ class MacroManager {
             data := Map()
             data["Macros"] := this.Macros
             data["Bindings"] := this.Bindings
+            data["SystemBindings"] := this.SystemBindings
             
             jsonStr := Jxon_Dump(data)
             if FileExist(this.StoragePath)

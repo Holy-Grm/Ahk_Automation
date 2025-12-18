@@ -2,6 +2,7 @@ class AppUI {
     static MainGui := ""
     static IsVisible := false
     static IsRecording := false
+    static BindingsGui := ""
 
     ; --- Player Settings ---
     static TurboMode := false
@@ -34,7 +35,7 @@ class AppUI {
     }
 
     static CreateGui() {
-        this.MainGui := Gui("+AlwaysOnTop", "AHK Automation Tool")
+        this.MainGui := Gui("", "AHK Automation Tool")
         this.MainGui.OnEvent("Close", (*) => this.OnCloseAttempt())
         this.MainGui.SetFont("s10", "Segoe UI")
 
@@ -129,13 +130,9 @@ class AppUI {
     }
 
     static StartNewRecording() {
-        name := InputBox("Enter Macro Name:", "New Macro").Value
-        if (name) {
-            MacroManager.CreateMacro(name)
-            this.RefreshMacroList()
-            Recorder.Start()
-            this.Hide() ; Hide UI while recording
-        }
+        Recorder.Start()
+        this.RefreshMacroList()
+        this.Hide() ; Hide UI while recording
     }
 
     static DeleteSelected() {
@@ -199,7 +196,6 @@ class AppUI {
             result := MsgBox("Bind '" . keyName . "' to '" . macroName . "'?", "Confirm Binding", "YesNo")
             if (result == "Yes") {
                 MacroManager.RegisterBinding(keyName, macroName)
-                MsgBox("Bound " . keyName . " to " . macroName)
             }
         }
     }
@@ -244,11 +240,19 @@ class AppUI {
     }
 
     static ShowBindingsUI() {
+        if (this.BindingsGui) {
+            this.BindingsGui.Show()
+            return
+        }
         this.BindingsGui := Gui("+Owner" . this.MainGui.Hwnd, "Manage Bindings")
-        this.BindingsGui.Add("Text",, "Active Bindings (Key -> Macro):")
-        this.BindingList := this.BindingsGui.Add("ListBox", "w300 h200")
+        this.BindingsGui.OnEvent("Close", (*) => this.BindingsGui := "")
         
-        this.BindingsGui.Add("Button", "w300", "Unbind Selected").OnEvent("Click", (*) => this.UnbindSelected())
+        this.BindingsGui.Add("Text",, "System Keys & Macro Bindings:")
+        this.BindingList := this.BindingsGui.Add("ListBox", "w350 h250")
+        
+        ; Buttons
+        this.BindingsGui.Add("Button", "w170 xm", "Change Key").OnEvent("Click", (*) => this.ChangeSelectedKey())
+        this.BindingsGui.Add("Button", "w170 x+10", "Unbind / Delete").OnEvent("Click", (*) => this.UnbindSelected())
         
         this.RefreshBindingsList()
         this.BindingsGui.Show()
@@ -259,29 +263,99 @@ class AppUI {
             return
             
         this.BindingList.Delete()
+        
+        ; 1. System Bindings
+        for action, key in MacroManager.SystemBindings {
+            displayKey := (key == "") ? "(No key assigned)" : key
+            this.BindingList.Add(["[System] " . action . "  ->  " . displayKey])
+        }
+        
+        ; Separator or just list
+        
+        ; 2. Macro Bindings
         for key, macro in MacroManager.Bindings {
-            this.BindingList.Add([key . "  ->  " . macro]) ; Must be an array
+            this.BindingList.Add(["[Macro] " . macro . "  <-  " . key]) 
+            ; Note: Different visual format to distinguish easily, or keep similar.
+            ; Let's keep consistent: Type(Key) -> Object
+            ; But for macros its Key -> MacroName. For System it's Action -> Key.
+            ; Let's normalize:  "Key  ->  Action/Macro"
+        }
+    }
+    
+    static ChangeSelectedKey() {
+        selectedText := this.BindingList.Text
+        if (!selectedText)
+            return
+            
+        ; Parse selection
+        isSystem := false
+        targetName := ""
+        
+        if (SubStr(selectedText, 1, 8) == "[System]") {
+            isSystem := true
+            ; Format: "[System] Action  ->  Key"
+            parts := StrSplit(selectedText, "  ->  ")
+            targetName := SubStr(parts[1], 10) ; Remove "[System] "
+        } else {
+            ; Format: "[Macro] MacroName  <-  Key"
+            ; Wait, user wants to change the KEY.
+            ; Macro bindings are Key -> Macro.
+            parts := StrSplit(selectedText, "  <-  ")
+            targetName := SubStr(parts[1], 9) ; Remove "[Macro] "
+        }
+        
+        this.ShowOSD("PRESS NEW KEY`n(Esc to Cancel)", "Blue")
+        
+        ih := InputHook("V0 L0") 
+        ih.KeyOpt("{All}", "N")
+        ih.OnKeyDown := ObjBindMethod(this, "OnNewKeyBound", targetName, isSystem, ih)
+        ih.Start()
+    }
+    
+    static OnNewKeyBound(targetName, isSystem, ih, hook, vk, sc) {
+        keyName := GetKeyName(Format("vk{:x}sc{:x}", vk, sc))
+        hook.Stop()
+        this.HideOSD()
+        
+        if (keyName == "Escape")
+            return
+            
+        if (keyName != "") {
+            if (isSystem) {
+                MacroManager.UpdateSystemBinding(targetName, keyName)
+            } else {
+                ; For macros, we are re-binding a macro.
+                ; But wait, the list entry was Key -> Macro. If we change Key, we need to know WHICH macro.
+                ; Yes, targetName is the Macro Name extracted above.
+                MacroManager.RegisterBinding(keyName, targetName)
+            }
+            this.RefreshBindingsList()
+            MsgBox("Updated '" . targetName . "' to '" . keyName . "'")
         }
     }
 
     static UnbindSelected() {
         selectedText := this.BindingList.Text
-        if (selectedText) {
-            ; Format is "Key  ->  Macro"
-            parts := Array()
-            Loop Parse, selectedText, " "
-                if (A_LoopField != "" && A_LoopField != "->" && A_LoopField != " ")
-                    parts.Push(A_LoopField)
+        if (!selectedText)
+            return
+
+        if (SubStr(selectedText, 1, 8) == "[System]") {
+             ; System Key: Clear it, don't delete the action
+            parts := StrSplit(selectedText, "  ->  ")
+            action := SubStr(parts[1], 10)
             
-            ; Re-parse specifically 
-            ; Actually simplest is to split by "  ->  "
-            splitPos := InStr(selectedText, "  ->  ")
-            if (splitPos > 0) {
-                key := SubStr(selectedText, 1, splitPos - 1)
-                MacroManager.UnbindKey(key)
-                this.RefreshBindingsList()
-                MsgBox("Unbound: " . key)
-            }
+            MacroManager.UpdateSystemBinding(action, "")
+            this.RefreshBindingsList()
+            MsgBox("Cleared key for: " . action)
+            
+        } else {
+            ; Macro Key: Delete the binding
+            parts := StrSplit(selectedText, "  <-  ")
+            ; "[Macro] MacroName  <-  Key"
+            key := parts[2]
+            
+            MacroManager.UnbindKey(key)
+            this.RefreshBindingsList()
         }
     }
 
