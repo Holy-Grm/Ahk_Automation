@@ -35,7 +35,7 @@ Double-click on **`Main.ahk`** to start the program.
 1.  Click **"Record New"**.
 2.  Enter a name for your macro.
 3.  The interface will hide, and recording will begin. Perform your actions.
-4.  Press **`F8`** to stop recording.
+4.  Press **`F14`** to stop recording.
 
 ### Playing a Macro
 1.  Select a macro from the list.
