@@ -32,6 +32,8 @@ A lightweight and powerful automation tool written in **AutoHotkey v2**. This so
 ### Launch
 Double-click on **`Main.ahk`** to start the program.
 
+![AxA_UI](AxA_UI.png)
+
 ### Recording a Macro
 1.  Click **"Record New"**.
 2.  Enter a name for your macro.
