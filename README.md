@@ -1,3 +1,4 @@
+[[icon.ico]]
 # AHK Automation Tool
 
 A lightweight and powerful automation tool written in **AutoHotkey v2**. This software allows you to record, edit, and replay keyboard and mouse macros through an intuitive graphical interface.
