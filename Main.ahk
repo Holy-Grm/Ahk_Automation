@@ -8,11 +8,17 @@ Persistent
 #Include Lib\Player.ahk
 #Include Lib\UI.ahk
 
-; Initialize
+; Initialize Macro Manager
 MacroManager.Init()
+
+; Show UI on startup
+AppUI.Show()
 
 ; Tray Icon Setup
 A_IconTip := "AHK Automation Tool"
+if FileExist("icon.ico") {
+    TraySetIcon("icon.ico")
+}
 
 ; Global Settings
 CoordMode "Mouse", "Screen"

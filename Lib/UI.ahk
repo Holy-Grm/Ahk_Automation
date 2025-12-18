@@ -34,8 +34,8 @@ class AppUI {
     }
 
     static CreateGui() {
-        this.MainGui := Gui("+Resize +AlwaysOnTop", "AHK Automation Tool")
-        this.MainGui.OnEvent("Close", (*) => this.Hide())
+        this.MainGui := Gui("+AlwaysOnTop", "AHK Automation Tool")
+        this.MainGui.OnEvent("Close", (*) => this.OnCloseAttempt())
         this.MainGui.SetFont("s10", "Segoe UI")
 
         ; Macro List
@@ -44,38 +44,56 @@ class AppUI {
         this.MacroList.OnEvent("Change", (*) => this.OnMacroSelection())
 
         ; Controls
-        this.MainGui.Add("Button", "w95 Section", "Record New").OnEvent("Click", (*) => this.StartNewRecording())
-        this.MainGui.Add("Button", "w95 ys", "Delete").OnEvent("Click", (*) => this.DeleteSelected())
-        this.MainGui.Add("Button", "w95 ys", "Rename").OnEvent("Click", (*) => this.RenameSelected())
-        this.MainGui.Add("Button", "w95 ys", "Edit Code").OnEvent("Click", (*) => this.EditSelected())
-        this.MainGui.Add("Button", "w95 ys", "Bind Key").OnEvent("Click", (*) => this.BindSelected()) 
-        this.MainGui.Add("Button", "w95 ys", "Manage Keys").OnEvent("Click", (*) => this.ShowBindingsUI()) ; New Button
-        this.MainGui.Add("Button", "w95 xm", "Play").OnEvent("Click", (*) => this.PlaySelected())
+        ; Row 1: Play (Full width)
+        this.MainGui.Add("Button", "w300 xm", "Play").OnEvent("Click", (*) => this.PlaySelected())
+
+        ; Row 2: Record New, Delete (Half width each approx)
+        ; Width 300 total. Gap 10. Buttons (300-10)/2 = 145
+        this.MainGui.Add("Button", "w145 xm", "Record New").OnEvent("Click", (*) => this.StartNewRecording())
+        this.MainGui.Add("Button", "w145 x+10", "Delete").OnEvent("Click", (*) => this.DeleteSelected())
+        
+        ; Row 3: Rename, Edit Code
+        this.MainGui.Add("Button", "w145 xm", "Rename").OnEvent("Click", (*) => this.RenameSelected())
+        this.MainGui.Add("Button", "w145 x+10", "Edit Code").OnEvent("Click", (*) => this.EditSelected())
+        
+        ; Row 4: Assign Key, Manage Keys
+        this.MainGui.Add("Button", "w145 xm", "Assign Key").OnEvent("Click", (*) => this.BindSelected()) 
+        this.MainGui.Add("Button", "w145 x+10", "Manage Keys").OnEvent("Click", (*) => this.ShowBindingsUI())
         
         ; Playback Settings
-        ; Playback Settings
-        this.MainGui.Add("GroupBox", "xm w300 h80", "Playback Mode")
-        this.Opt1x := this.MainGui.Add("Radio", "xp+10 yp+20 Group Checked", "Run 1x")
+        this.MainGui.Add("GroupBox", "xm w300 h115 Section", "Playback Mode")
+        this.Opt1x := this.MainGui.Add("Radio", "xs+10 ys+25 Group Checked", "Run 1x")
         this.Opt1x.OnEvent("Click", (*) => this.SetMode("1x"))
         
-        this.OptNx := this.MainGui.Add("Radio", "y+5", "Run N times:")
+        this.OptNx := this.MainGui.Add("Radio", "y+10", "Run N times:")
         this.OptNx.OnEvent("Click", (*) => this.SetMode("Nx"))
         
-        this.OptLoop := this.MainGui.Add("Radio", "y+5", "Loop Indefinitely")
+        this.OptLoop := this.MainGui.Add("Radio", "y+10", "Loop Indefinitely")
         this.OptLoop.OnEvent("Click", (*) => this.SetMode("Loop"))
 
-        ; Edit field for N times (Moved after Radios to prevent group break)
-        this.EditN := this.MainGui.Add("Edit", "x+180 yp-27 w50 Number", "1")
+        ; Edit field for N times (Positioned absolutely relative to Section to avoid breaking radio group)
+        ; Aligned with OptNx (approx ys+55)
+        this.EditN := this.MainGui.Add("Edit", "xs+150 ys+55 w50 Number", "1")
         this.EditN.OnEvent("Change", (*) => this.UpdateN())
-
-        ; Turbo Mode
-        this.ChkTurbo := this.MainGui.Add("Checkbox", "xm+10 y+20", "Turbo Mode (Skip Delays)")
+        
+        ; Turbo Mode (Positioned relative to Section bottom)
+        this.ChkTurbo := this.MainGui.Add("Checkbox", "xs+10 ys+125", "Turbo Mode (Skip Delays)")
         this.ChkTurbo.OnEvent("Click", (*) => this.SetTurbo(this.ChkTurbo.Value))
 
         ; Status
         this.StatusText := this.MainGui.Add("Text", "xm w300 h20 y+20", "Ready")
 
         this.RefreshMacroList()
+        this.MainGui.Show()
+        
+        ; Apply Icon if exists
+        if FileExist("icon.ico") {
+            try {
+                hIcon := LoadPicture("icon.ico", "Icon1", &type)
+                SendMessage(0x80, 0, hIcon, this.MainGui.Hwnd) ; WM_SETICON Small
+                SendMessage(0x80, 1, hIcon, this.MainGui.Hwnd) ; WM_SETICON Big
+            }
+        }
     }
     
     static SetMode(mode) {
@@ -265,6 +283,34 @@ class AppUI {
                 MsgBox("Unbound: " . key)
             }
         }
+    }
+
+    static OnCloseAttempt() {
+        ; Custom Close Dialog
+        this.CloseGui := Gui("+Owner" . this.MainGui.Hwnd . " +AlwaysOnTop", "Close Application?")
+        this.CloseGui.SetFont("s10", "Segoe UI")
+        this.CloseGui.Add("Text", "Center w280", "Close AHK Automation?")
+        
+        this.CloseGui.Add("Button", "w80 x20 y+20", "Yes").OnEvent("Click", (*) => this.ConfirmExit())
+        this.CloseGui.Add("Button", "w80 x+20", "No").OnEvent("Click", (*) => this.CancelClose())
+        this.CloseGui.Add("Button", "w80 x+20", "Minimize").OnEvent("Click", (*) => this.MinimizeToTray())
+        
+        this.CloseGui.Show()
+        return true ; Prevent the main window from hiding immediately
+    }
+
+    static ConfirmExit() {
+        this.CloseGui.Destroy()
+        ExitApp()
+    }
+
+    static CancelClose() {
+        this.CloseGui.Destroy()
+    }
+
+    static MinimizeToTray() {
+        this.CloseGui.Destroy()
+        this.Hide()
     }
 
     static OSD := ""
