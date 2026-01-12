@@ -240,10 +240,35 @@ class AppUI {
         textStr := MacroCompiler.Decompile(actions)
         
         this.EditGui := Gui("+Owner" . this.MainGui.Hwnd, "Edit Macro: " . selected)
-        this.EditGui.Add("Text",, "Format: Action [Key/Data] OR Mouse Btn Event X, Y`nExample: KeyDown A | Mouse LButton Down 100, 200 | Delay 50")
+        this.EditGui.Add("Text",, "Format: [Icon] Val (Delay) | Down/Up Key | Btn Event X, Y`nExample: ⌨️ Down A | 🖱️ LButton Down 100, 200 | ⏱️ 50")
         this.EditBox := this.EditGui.Add("Edit", "w400 h300 Multi", textStr)
-        this.EditGui.Add("Button", "w100", "Save").OnEvent("Click", (*) => this.SaveEdit(selected))
+        
+        ; Helper Buttons
+        this.EditGui.Add("Button", "w90 Section", "⏱️ Delay").OnEvent("Click", (*) => this.InsertText("`r`n⏱️ 100"))
+        this.EditGui.Add("Button", "w90 x+10", "⌨️ Key").OnEvent("Click", (*) => this.InsertText("`r`n⌨️ Down A"))
+        this.EditGui.Add("Button", "w90 x+10", "🖱️ Mouse").OnEvent("Click", (*) => this.InsertText("`r`n🖱️ LButton Down 0, 0"))
+        
+        ; Save Button
+        this.EditGui.Add("Button", "w90 x+10", "Save").OnEvent("Click", (*) => this.SaveEdit(selected))
+        
         this.EditGui.Show()
+    }
+
+    static InsertText(text) {
+        if (this.EditBox) {
+            startBuf := Buffer(4, 0)
+            endBuf := Buffer(4, 0) 
+            SendMessage(0xB0, startBuf.Ptr, endBuf.Ptr, this.EditBox.Hwnd) ; EM_GETSEL
+            
+            selEnd := NumGet(endBuf, "UInt")
+            
+            this.EditBox.Focus()
+            
+            ; EM_SETSEL (0xB1) - Collapse selection to the end
+            SendMessage(0xB1, selEnd, selEnd, this.EditBox.Hwnd)
+                
+            EditPaste(text, this.EditBox.Hwnd)
+        }
     }
 
     static SaveEdit(name) {

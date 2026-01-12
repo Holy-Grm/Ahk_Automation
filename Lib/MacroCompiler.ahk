@@ -14,7 +14,7 @@ class MacroCompiler {
                 delay := action.Delay
                 
             if (delay > 0)
-                txt .= "Delay " . delay . "`r`n"
+                txt .= "⏱️ " . delay . "`r`n"
             
             ; 2. Handle Action Type
             actionType := ""
@@ -31,9 +31,9 @@ class MacroCompiler {
                 
             switch actionType {
                 case "KeyDown":
-                    txt .= "KeyDown " . data . "`r`n"
+                    txt .= "⌨️ Down " . data . "`r`n"
                 case "KeyUp":
-                    txt .= "KeyUp " . data . "`r`n"
+                    txt .= "⌨️ Up " . data . "`r`n"
                 case "Mouse":
                     ; Parse Data: {Button, Event, X, Y}
                     btn := "", evt := "", x := 0, y := 0
@@ -48,8 +48,8 @@ class MacroCompiler {
                         try x := data.X
                         try y := data.Y
                     }
-                    ; Format: Mouse <Button> <Event> <X>, <Y>
-                    txt .= "Mouse " . btn . " " . evt . " " . x . ", " . y . "`r`n"
+                    ; Format: <Button> <Event> <X>, <Y>
+                    txt .= "🖱️ " . btn . " " . evt . " " . x . ", " . y . "`r`n"
             }
         }
         return txt
@@ -65,57 +65,55 @@ class MacroCompiler {
             line := Trim(A_LoopField)
             if (line == "" || SubStr(line, 1, 1) == ";")
                 continue
-                
-            parts := StrSplit(line, " ")
-            cmd := parts[1]
             
-            if (cmd = "Delay") {
-                if (parts.Length > 1)
-                    pendingDelay += Integer(parts[2])
+            ; Strip Icons
+            line := StrReplace(line, "⌨️", "")
+            line := StrReplace(line, "⏱️", "")
+            line := StrReplace(line, "🖱️", "")
+            line := Trim(line)
+            
+            ; 1. Delay: Just a number
+            if IsNumber(line) {
+                pendingDelay += Integer(line)
                 continue
             }
             
             newAction := Map()
             newAction["Delay"] := pendingDelay
-            pendingDelay := 0 ; Reset consumed delay
             
-            switch cmd {
-                case "KeyDown":
-                    newAction["Type"] := "KeyDown"
-                    newAction["Data"] := (parts.Length > 1) ? parts[2] : ""
-                    actions.Push(newAction)
-                    
-                case "KeyUp":
-                    newAction["Type"] := "KeyUp"
-                    newAction["Data"] := (parts.Length > 1) ? parts[2] : ""
-                    actions.Push(newAction)
-                    
-                case "Mouse":
-                    ; Format: Mouse LButton Down 100, 200
-                    ; parts: [Mouse, LButton, Down, 100,, 200] (comma might split or not depending on parsing)
-                    ; Let's parse the line remainder carefully.
-                    
-                    ; Improve parsing for Mouse
-                    ; Regex might be safer
-                    ; ^Mouse\s+(\w+)\s+(\w+)\s+([\d-]+)\s*,\s*([\d-]+)
-                    
-                    btn := "LButton", evt := "Down", x := 0, y := 0
-                    if RegExMatch(line, "i)^Mouse\s+(\w+)\s+(\w+)\s+([\d-]+)\s*,\s*([\d-]+)", &match) {
-                        btn := match[1]
-                        evt := match[2]
-                        x := Integer(match[3])
-                        y := Integer(match[4])
-                        
-                        newAction["Type"] := "Mouse"
-                        newAction["Data"] := Map("Button", btn, "Event", evt, "X", x, "Y", y)
-                        actions.Push(newAction)
-                    }
+            ; 2. Key: Down/Up KeyName
+            match := ""
+            if RegExMatch(line, "i)^(Down|Up)\s+(.+)", &match) {
+                newAction["Type"] := (match[1] = "Down") ? "KeyDown" : "KeyUp"
+                newAction["Data"] := match[2]
+                actions.Push(newAction)
+                pendingDelay := 0
+                continue
+            }
+            
+            ; 3. Mouse: Button Event X, Y
+            ; e.g. LButton Down 100, 200
+            if RegExMatch(line, "i)^(\w+)\s+(Down|Up)\s+([\d-]+)\s*,\s*([\d-]+)", &match) {
+                newAction["Type"] := "Mouse"
+                newAction["Data"] := Map(
+                    "Button", match[1],
+                    "Event", match[2],
+                    "X", Integer(match[3]),
+                    "Y", Integer(match[4])
+                )
+                actions.Push(newAction)
+                pendingDelay := 0
+                continue
+            }
+            
+            ; 4. Legacy Support (Optional, mostly for "Delay 100")
+            if (SubStr(line, 1, 5) = "Delay") {
+                 parts := StrSplit(line, " ")
+                 if (parts.Length > 1 && IsNumber(parts[2]))
+                    pendingDelay += Integer(parts[2])
+                 continue
             }
         }
-        
-        ; If there is a trailing delay, we lose it because it's not attached to an action.
-        ; Alternatively, we could append a dummy action or just ignore it implies end of script wait.
-        ; For now, ignore.
         
         return actions
     }
