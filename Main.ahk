@@ -7,6 +7,7 @@ Persistent
 #Include Lib\Recorder.ahk
 #Include Lib\Player.ahk
 #Include Lib\UI.ahk
+#Include Lib\MacroCompiler.ahk
 
 ; Initialize Macro Manager
 MacroManager.Init()

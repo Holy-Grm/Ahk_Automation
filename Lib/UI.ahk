@@ -235,29 +235,32 @@ class AppUI {
         if (!selected)
             return
 
-        actions := MacroManager.GetMacro(selected)
-        jsonStr := Jxon_Dump(actions) ; Get JSON string
+        actions := MacroManager.GetMacroActions(selected)
+        ; Convert to Simplified Text
+        textStr := MacroCompiler.Decompile(actions)
         
         this.EditGui := Gui("+Owner" . this.MainGui.Hwnd, "Edit Macro: " . selected)
-        this.EditGui.Add("Text",, "Edit Raw JSON:")
-        this.EditBox := this.EditGui.Add("Edit", "w400 h300 Multi", jsonStr)
+        this.EditGui.Add("Text",, "Format: Action [Key/Data] OR Mouse Btn Event X, Y`nExample: KeyDown A | Mouse LButton Down 100, 200 | Delay 50")
+        this.EditBox := this.EditGui.Add("Edit", "w400 h300 Multi", textStr)
         this.EditGui.Add("Button", "w100", "Save").OnEvent("Click", (*) => this.SaveEdit(selected))
         this.EditGui.Show()
     }
 
     static SaveEdit(name) {
-        jsonText := this.EditBox.Value
+        textStr := this.EditBox.Value
         try {
-            newActions := ParseJSON(jsonText) ; Use the parser we fixed
-            if (IsObject(newActions)) {
+            ; Convert Text -> Actions
+            newActions := MacroCompiler.Compile(textStr)
+            
+            if (newActions.Length >= 0) {
                 MacroManager.UpdateMacro(name, newActions)
                 this.EditGui.Destroy()
                 MsgBox("Macro updated!")
             } else {
-                MsgBox("Error: Invalid Object")
+                MsgBox("Error: Could not parse actions.")
             }
         } catch as err {
-            MsgBox("JSON Parse Error: " . err.Message)
+            MsgBox("Parse Error: " . err.Message)
         }
     }
 
