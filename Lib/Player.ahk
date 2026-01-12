@@ -16,12 +16,21 @@ class Player {
         if (macroName == "")
             macroName := MacroManager.CurrentMacro
         
-        actions := MacroManager.GetMacro(macroName)
+        actions := MacroManager.GetMacroActions(macroName)
+        settings := MacroManager.GetMacroSettings(macroName)
 
         if (actions.Length == 0) {
             MsgBox("No actions in macro: " . macroName)
             return
         }
+        
+        ; Apply Settings
+        if (settings.Has("Turbo"))
+            this.Turbo := settings["Turbo"]
+        if (settings.Has("Mode"))
+            this.Mode := settings["Mode"]
+        if (settings.Has("LoopCount"))
+            this.LoopCount := settings["LoopCount"]
 
         this.IsPlaying := true
         A_IconTip := "Running: " . macroName . "`n[Esc] to Stop"
@@ -41,6 +50,7 @@ class Player {
                 break
             if (this.Mode == "Nx" && counter >= this.LoopCount)
                 break
+            ; Loop implies infinite, only break on Stop
         }
 
         this.Stop()

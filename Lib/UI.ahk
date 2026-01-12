@@ -9,6 +9,8 @@ class AppUI {
     
     static SetTurbo(enabled) {
         Player.Turbo := enabled
+        if (MacroManager.CurrentMacro != "")
+            MacroManager.UpdateMacroSetting(MacroManager.CurrentMacro, "Turbo", enabled)
     }
 
     static Toggle() {
@@ -99,14 +101,22 @@ class AppUI {
     
     static SetMode(mode) {
         Player.Mode := mode
+        if (MacroManager.CurrentMacro != "")
+            MacroManager.UpdateMacroSetting(MacroManager.CurrentMacro, "Mode", mode)
+        
         if (mode == "Nx")
             this.UpdateN()
     }
     
     static UpdateN() {
+        if (!this.EditN)
+             return
         val := Integer(this.EditN.Value)
-        if (val > 0)
+        if (val > 0) {
             Player.LoopCount := val
+            if (MacroManager.CurrentMacro != "")
+                MacroManager.UpdateMacroSetting(MacroManager.CurrentMacro, "LoopCount", val)
+        }
     }
 
     static RefreshMacroList() {
@@ -126,6 +136,26 @@ class AppUI {
         if (selected) {
             MacroManager.CurrentMacro := selected
             this.StatusText.Value := "Selected: " . selected
+            
+            ; Load Settings
+            settings := MacroManager.GetMacroSettings(selected)
+            
+            ; Update Player State
+            Player.Turbo := settings["Turbo"]
+            Player.Mode := settings["Mode"]
+            Player.LoopCount := settings["LoopCount"]
+            
+            ; Update UI Controls
+            this.ChkTurbo.Value := settings["Turbo"]
+            
+            if (settings["Mode"] == "Nx")
+                this.OptNx.Value := 1
+            else if (settings["Mode"] == "Loop")
+                this.OptLoop.Value := 1
+            else 
+                this.Opt1x.Value := 1
+                
+            this.EditN.Value := settings["LoopCount"]
         }
     }
 

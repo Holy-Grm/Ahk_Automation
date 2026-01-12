@@ -22,8 +22,21 @@ class MacroManager {
                 if (jsonStr != "") {
                     loaded := Jxon_Load(jsonStr)
                     if (IsObject(loaded)) {
-                        if (loaded.Has("Macros"))
-                            this.Macros := loaded["Macros"]
+                        if (loaded.Has("Macros")) {
+                            ; Load and Convert if necessary
+                            for name, data in loaded["Macros"] {
+                                if (Type(data) == "Array") {
+                                    ; Convert Legacy Format (Array of Actions) -> New Format
+                                    this.Macros[name] := Map(
+                                        "Actions", data, 
+                                        "Settings", Map("Turbo", false, "Mode", "1x", "LoopCount", 1)
+                                    )
+                                } else {
+                                    ; Load New Format
+                                    this.Macros[name] := data
+                                }
+                            }
+                        }
                         if (loaded.Has("Bindings"))
                             this.Bindings := loaded["Bindings"]
                         if (loaded.Has("SystemBindings")) {
@@ -111,7 +124,11 @@ class MacroManager {
     }
 
     static CreateMacro(name) {
-        this.Macros[name] := []
+        ; Initialize with default settings
+        this.Macros[name] := Map(
+            "Actions", [],
+            "Settings", Map("Turbo", false, "Mode", "1x", "LoopCount", 1)
+        )
         this.CurrentMacro := name
     }
 
@@ -128,7 +145,9 @@ class MacroManager {
 
     static UpdateMacro(name, newActions) {
         if (this.Macros.Has(name)) {
-            this.Macros[name] := newActions
+            if (!this.Macros[name].Has("Actions"))
+                 this.Macros[name]["Actions"] := []
+            this.Macros[name]["Actions"] := newActions
             return true
         }
         return false
@@ -136,7 +155,39 @@ class MacroManager {
 
     static AddAction(action) {
         if (this.CurrentMacro != "" && this.Macros.Has(this.CurrentMacro)) {
-            this.Macros[this.CurrentMacro].Push(action)
+            if (!this.Macros[this.CurrentMacro].Has("Actions"))
+                this.Macros[this.CurrentMacro]["Actions"] := []
+            this.Macros[this.CurrentMacro]["Actions"].Push(action)
+        }
+    }
+    
+    static GetMacroActions(name) {
+        if this.Macros.Has(name) && this.Macros[name].Has("Actions")
+            return this.Macros[name]["Actions"]
+        return []
+    }
+
+    ; Helper for compatibility if Player calls GetMacro expecting Actions
+    ; But we are updating Player anyway. 
+    static GetMacro(name) {
+        return this.GetMacroActions(name)
+    }
+    
+    static GetMacroSettings(name) {
+        defaultSettings := Map("Turbo", false, "Mode", "1x", "LoopCount", 1)
+        if (this.Macros.Has(name)) {
+            if (this.Macros[name].Has("Settings"))
+                return this.Macros[name]["Settings"]
+        }
+        return defaultSettings
+    }
+    
+    static UpdateMacroSetting(name, key, value) {
+        if (this.Macros.Has(name)) {
+            if (!this.Macros[name].Has("Settings"))
+                this.Macros[name]["Settings"] := Map("Turbo", false, "Mode", "1x", "LoopCount", 1)
+            
+            this.Macros[name]["Settings"][key] := value
         }
     }
 
@@ -146,12 +197,6 @@ class MacroManager {
             list.Push(name)
         }
         return list
-    }
-
-    static GetMacro(name) {
-        if this.Macros.Has(name)
-            return this.Macros[name]
-        return []
     }
 
     static DeleteMacro(name) {
@@ -299,7 +344,8 @@ Jxon_Parse_Recursive(&str) {
                 str := SubStr(str, 2)
             
             val := Jxon_Parse_Recursive(&str)
-            obj.Push(val)
+            if (val != "")
+                obj.Push(val)
         }
         return obj
     } else if (char == '"') {
