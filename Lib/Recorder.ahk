@@ -3,7 +3,7 @@ class Recorder {
     static StartTime := 0
     static LastActionTime := 0
     static KeyHook := ""
-    
+
     ; Mouse buttons to record
     static MouseKeys := ["LButton", "RButton", "MButton", "WheelUp", "WheelDown"]
 
@@ -20,7 +20,7 @@ class Recorder {
     static Start(name := "") {
         if (name == "") {
             i := 1
-            Loop {
+            loop {
                 name := "Macro" . i
                 if (!MacroManager.Macros.Has(name))
                     break
@@ -36,7 +36,7 @@ class Recorder {
         this.IsRecording := true
         this.StartTime := A_TickCount
         this.LastActionTime := this.StartTime
-        
+
         ; Setup Keyboard Hook
         this.KeyHook := InputHook("V L0") ; Visible input
         this.KeyHook.KeyOpt("{All}", "N") ; Notify on all keys
@@ -55,10 +55,10 @@ class Recorder {
 
     static Stop() {
         this.IsRecording := false
-        
+
         if (this.KeyHook)
             this.KeyHook.Stop()
-        
+
         ; Turn off mouse hotkeys
         for key in this.MouseKeys {
             try Hotkey("~" . key, "Off")
@@ -67,7 +67,7 @@ class Recorder {
 
         AppUI.ShowOSD("Finished", "008800") ; Green
         SetTimer(ObjBindMethod(AppUI, "HideOSD"), -2000) ; Hide after 2s
-        
+
         if (AppUI.MainGui) {
             AppUI.Show() ; Re-show UI
         }
@@ -91,7 +91,7 @@ class Recorder {
 
     static OnMouse(key, event, *) {
         MouseGetPos(&x, &y)
-        this.RecordAction("Mouse", {Button: key, Event: event, X: x, Y: y})
+        this.RecordAction("Mouse", { Button: key, Event: event, X: x, Y: y })
     }
 
     static RecordAction(type, data) {
@@ -107,7 +107,7 @@ class Recorder {
             Data: data,
             Delay: delay
         }
-        
+
         MacroManager.AddAction(action)
     }
 }

@@ -134,6 +134,13 @@ class Player {
                         try ievt := inputs.Event
                     }
                     
+                    ; Normalize Button Names
+                    switch ibtn {
+                        case "LButton": ibtn := "Left"
+                        case "RButton": ibtn := "Right"
+                        case "MButton": ibtn := "Middle"
+                    }
+                    
                     MouseMove(ix, iy)
                     if (ievt == "Down")
                         Click(ibtn . " Down")
